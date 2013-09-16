@@ -1,13 +1,15 @@
 # Spin
 
-Front-end package manager for [spins](https://github.com/spinly), built
-on [component](https://github.com/component.io).
+Modular front-end package management for teams.
 
-#### Installation
+## Features
 
-`git clone https://github.com/spinly/spin && cd spin && npm install -g .`
+- works alongside [component]( https://github.com/component/component )
+- write modular front-end tools
+- relies on git for subprojects
+- more powerful skeletons out of the box
 
-#### Usage
+## Usage
 
 Via `--help`:
 
@@ -22,6 +24,19 @@ Via `--help`:
 
   Commands:
 
-    create [dir]            create a component skeleton
+    create [dir]            create a project skeleton
+    add [name]              add a subproject
+    rm [name]               remove a subproject
 
 ```
+
+## Links
+
+- [Spin wiki](https://github.com/spinly/spin/wiki)
+- [Component wiki](https://github.com/component/component/wiki)
+
+## TODO
+
+- mocha/should on create
+- coffeescript/livescript?
+
