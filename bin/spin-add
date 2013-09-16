@@ -1,0 +1,13 @@
+#!/bin/bash
+
+submodule=$1
+
+test -z $submodule && echo "Submodule required" 1>&2 && exit 1
+test ! -e .git && echo "Initializing git in working directory" 1>&1 && git init
+
+dashed=$(echo $submodule | sed 's/\//-/g')
+url=spins/$dashed
+
+test ! -z $(git config --file=.gitmodules submodule.$url.url) && echo "Already in the index" 1>&2 && exit 3
+
+git submodule add https://github.com/$submodule.git $url

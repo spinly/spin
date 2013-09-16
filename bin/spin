@@ -1,0 +1,41 @@
+#!/usr/bin/env node
+
+var program = require('commander');
+var utils = require("../lib/utils");
+var spawn = require("win-fork");
+var path = require("path");
+var fs = require('fs');
+var exists = fs.existsSync;
+var join = path.join;
+
+program
+  .version(require("../package.json").version)
+  .usage("<command> [options]");
+
+program.on('--help', function(){
+  console.log('  Commands:');
+  console.log();
+  console.log('    create [dir]            create a component skeleton');
+  process.exit();
+});
+
+program.parse(process.argv);
+var args = process.argv.slice(3);
+var cmd = program.args[0];
+
+if (!cmd) {
+  process.stdout.write(program.helpInformation());
+  program.emit("--help")
+  process.exit();
+}
+
+var bin = "spin-" + cmd;
+var local = join(__dirname, bin);
+if (exists(local)) bin = local;
+
+var proc = spawn(bin, args, { stdio: 'inherit', customFds: [0, 1, 2] });
+proc.on('close', function (code){
+  process.exit(code);
+});
+
+

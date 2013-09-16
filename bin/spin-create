@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+
+var program = require('commander');
+var component = require('component');
+var utils = component.utils;
+var path = require('path');
+var fs = require('fs');
+var join = path.join;
+var exists = fs.existsSync;
+var mkdir = require('mkdirp').sync;
+var readme = require('../templates/readme');
+var pkg = require('../package.json');
+
+program.usage("[dir]");
+
+program
+  .option('-l, --local', 'create a local private component')
+  .parse(process.argv);
+
+var conf = {};
+var npm = {};
+
+var dir = program.args[0] || '.';
+
+var local = program.local;
+
+if (exists(join(dir, 'component.json'))) {
+  utils.fatal(dir + ' is already a component');
+}
+
+function write(path, str) {
+  if (exists(path)) {
+    utils.warn('exists', path);
+    fs.writeFileSynx(path, str);
+  } else {
+    utils.log('create', path);
+    fs.writeFileSync(path, str);
+  }
+}
+
+if (local) {
+  var prompt = {
+    name: 'name: ',
+    desc: 'description: ',
+    js: 'does this project need javascript? ',
+    styles: 'does this project need styles? ',
+    markup: 'does this project need markup? '
+  };
+} else {
+  var prompt = {
+    repo: 'repo (username/project): ',
+    desc: 'description: ',
+    js: 'does this project need javascript? ',
+    styles: 'does this project need styles? ',
+    markup: 'does this project need markup? '
+  };
+}
+
+program.prompt(prompt, function (obj){
+  if (local) {
+    var name = obj.name;
+  } else {
+    var repo = obj.repo.split('/');
+    if (2 != repo.length) throw new Error ('repo must be <username>/<project>');
+    var name = repo[1];
+  }
+
+  conf.name = obj.name = npm.name = name;
+  if (!local) conf.repo = repo.join('/');
+  if (!local) npm.repository = [ 'git://github.com/' ].concat(repo, ".git").join('/');
+  conf.description = obj.desc = npm.description;
+  if (!local) conf.version = npm.version = "0.0.1";
+  if (!local) conf.keywords = npm.keywords = [];
+  conf.dependencies = {};
+  npm.dependencies = pkg.binDependencies;
+  conf.development = npm.devDependencies = {};
+  if (!local) conf.license = npm.license = "MIT";
+
+  console.log();
+  utils.log("create", dir);
+  mkdir(dir);
+
+  if (bool(obj.js)) {
+    conf.main = "index.js";
+    conf.scripts = ["index.js"];
+    write(join(dir, "index.js"), "");
+  }
+
+  if (bool(obj.styles )) {conf.styles = ["index.styl"];
+                          write(join(dir, "index.styl"), "");
+                          write(join(dir, "stylus.js"), [
+                            "var stylusPlugin = require('component-stylus-plugin');",
+                            "stylusPlugin.linenos = false;",
+                            "stylusPlugin.paths = ['components'];",
+                            "module.exports = stylusPlugin;"
+                          ].join("\n"));
+                        }
+
+  if (bool(obj.markup)) {write(join(dir, "template.jade"), "mixin " + name + "()\n\ttest\n\n" + name + "()")
+  }
+
+  if (!local) {
+    var ignore = ["components",
+                  "build",
+                  ".DS_Store",
+                  "node_modules"];
+
+    write(join(dir, ".gitignore" ), ignore.join("\n"));
+    write(join(dir, "Makefile"   ), createMakefile(obj));
+    write(join(dir, "Readme.md"  ), readme(obj));
+  }
+
+  write(join(dir, "component.json" ), JSON.stringify(conf, null, 2));
+  write(join(dir, "package.json"   ), JSON.stringify(npm, null, 2));
+
+  console.log();
+  process.exit();
+});
+
+function bool(str) {
+  return /^y(es)?/i.test(str);
+}
+
+function createMakefile(obj) {
+  var buf = "\n";
+
+                          buf += "default: components node_modules";
+  if (bool(obj.js     ))  buf += " index.js";
+  if (bool(obj.styles ))  buf += " build/build.css";
+  if (bool(obj.markup ))  buf += " template.html";
+                          buf +=  "\n\n";
+
+                          buf += "build/build.css:"
+  if (bool(obj.js     ))  buf += " index.js"
+  if (bool(obj.styles ))  buf += " index.styl";
+                          buf += "\n\t@component build --dev";
+  if (bool(obj.styles ))  buf += " --use stylus";
+                          buf +=  "\n\n";
+
+  if (bool(obj.markup )) {buf += "template.html: template.jade";
+                          buf +=  "\n\t@./node_modules/.bin/jade $< && \\\n\t\tcomponent convert $@";
+                          buf +=  "\n\n";
+                          }
+
+                          buf += "node_modules: package.json\n";
+                          buf += "\t@npm install";
+                          buf +=  "\n\n";
+
+                          buf += "components: component.json\n";
+                          buf += "\t@component install --dev\n\n";
+
+                          buf += "clean:\n";
+                          buf += "\trm -fr build components\n\n";
+
+                          buf += ".PHONY: clean build\n";
+
+  return buf;
+}
+
+

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+submodule=$1
+
+test -z $submodule && echo "Submodule required" 1>&2 && exit 1
+test ! -f .gitmodules && echo ".gitmodules file not found" 1>&2 && exit 2
+
+dashed=$(echo $submodule | sed 's/\//-/g')
+url=spins/$dashed
+
+test -z $(git config --file=.gitmodules submodule.$url.url) && echo "submodule not found" 2>&2 && exit 3
+
+git config --remove-section submodule.$url
+git config --file=.gitmodules --remove-section submodule.$url
+git rm --cached $url
